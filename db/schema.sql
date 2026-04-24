@@ -22,7 +22,7 @@ CREATE TABLE tasks (
     id SERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     description TEXT,
-    status VARCHAR(50) DEFAULT 'todo',
+    status VARCHAR(50),
     due_date DATE,
     project_id INTEGER NOT NULL,
     assigned_to INTEGER,
