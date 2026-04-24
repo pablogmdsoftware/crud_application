@@ -8,7 +8,7 @@ ENV POSTGRES_DB=mydatabase
 
 # Copy initialization scripts
 # Any .sql or .sh files in this folder will run on first startup
-# COPY ./init.sql /docker-entrypoint-initdb.d/
+COPY schema.sql /docker-entrypoint-initdb.d/schema.sql
 
 # Expose PostgreSQL port
 EXPOSE 5432
