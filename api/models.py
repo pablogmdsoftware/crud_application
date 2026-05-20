@@ -6,6 +6,7 @@ class UserBase(SQLModel):
     email: str
 
 class User(UserBase, table=True):
+    __tablename__ = "users"
     id: int | None = Field(default=None, primary_key=True)
     password: str
     created_at: datetime | None
