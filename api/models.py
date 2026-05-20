@@ -21,4 +21,4 @@ class UserUpdate(UserBase):
     password: str | None = None
 
 class UserPublic(UserBase):
-    create_at: datetime
+    created_at: datetime
