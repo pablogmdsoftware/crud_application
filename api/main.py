@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from sqlmodel import select
 from typing import Annotated
 from dependencies import SessionDep
@@ -18,3 +18,13 @@ def read_users(
 ) -> list[User]:
     users = session.exec(select(User).offset(offset).limit(limit)).all()
     return users
+
+@app.get("/users/{user_id}", response_model=UserPublic)
+def read_users(
+    session: SessionDep,
+    user_id: int,
+) -> User:
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
