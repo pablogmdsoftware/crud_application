@@ -20,7 +20,7 @@ def read_users(
     return users
 
 @app.get("/users/{user_id}", response_model=UserPublic)
-def read_users(
+def read_user(
     session: SessionDep,
     user_id: int,
 ) -> User:
