@@ -35,7 +35,7 @@ def create_user(session: SessionDep, user: UserCreate):
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    return 
+    return db_user
 
 @app.delete("/users/{user_id}")
 def delete_user(user_id: int, session: SessionDep):
