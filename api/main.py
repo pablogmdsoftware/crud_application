@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException
 from sqlmodel import select
+from sqlalchemy.exc import IntegrityError
 from typing import Annotated
 from dependencies import SessionDep
 from models import User, UserPublic, UserCreate, UserUpdate
@@ -40,8 +41,14 @@ def read_user(
 def create_user(session: SessionDep, user: UserCreate):
     db_user = User.model_validate(user)
     session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
+    try:
+        session.commit()
+        session.refresh(db_user)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="A user with this email already exists",
+        )
     return db_user
 
 @app.delete("/users/{user_id}")
