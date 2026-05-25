@@ -35,4 +35,13 @@ def create_user(session: SessionDep, user: UserCreate):
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
-    return db_user
+    return 
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, session: SessionDep):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    session.delete(user)
+    session.commit()
+    return {"ok": True}
