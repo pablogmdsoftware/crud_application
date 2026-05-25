@@ -2,7 +2,7 @@ from fastapi import FastAPI, Query, HTTPException
 from sqlmodel import select
 from typing import Annotated
 from dependencies import SessionDep
-from models import User, UserPublic
+from models import User, UserPublic, UserCreate
 
 app = FastAPI()
 
@@ -28,3 +28,11 @@ def read_users(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+@app.post("/users/", response_model=UserPublic)
+def create_user(session: SessionDep, user: UserCreate):
+    db_user = User.model_validate(user)
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return db_user
