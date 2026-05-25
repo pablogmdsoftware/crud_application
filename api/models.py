@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field
-from datetime import datetime
+from datetime import datetime, UTC
 
 class UserBase(SQLModel):
     name: str
@@ -8,12 +8,11 @@ class UserBase(SQLModel):
 class User(UserBase, table=True):
     __tablename__ = "users"
     id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime | None = Field(default=datetime.now(UTC))
     password: str
-    created_at: datetime | None
 
 class UserCreate(UserBase):
     password: str
-    created_at: datetime | None = Field(default=datetime.now())
 
 class UserUpdate(UserBase):
     name: str | None = None
