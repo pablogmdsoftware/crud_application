@@ -15,7 +15,14 @@ def read_users(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
+    username: str | None = None,
 ) -> list[User]:
+    if username:
+        statement = select(User).where(User.name == username).limit(limit)
+        user = session.exec(statement).all()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
     users = session.exec(select(User).offset(offset).limit(limit)).all()
     return users
 
