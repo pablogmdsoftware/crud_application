@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field
+from pydantic import BaseModel
 from datetime import datetime, UTC
 
 class UserBase(SQLModel):
@@ -21,3 +22,10 @@ class UserUpdate(UserBase):
 
 class UserPublic(UserBase):
     created_at: datetime
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: str | None = None

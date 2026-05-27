@@ -1,15 +1,38 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Query, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from typing import Annotated
-from dependencies import SessionDep
-from models import User, UserPublic, UserCreate, UserUpdate
+from datetime import timedelta
+from dependencies import SessionDep, get_password_hash, create_access_token, authenticate_user
+from settings import ACCESS_TOKEN_EXPIRE_MINUTES
+from models import User, UserPublic, UserCreate, UserUpdate, Token
+
+from dependencies import get_current_user
 
 app = FastAPI()
 
 @app.get("/")
 def root():
     return {"status": "ok"}
+
+@app.post("/token")
+async def login_for_access_token(
+    session: SessionDep,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> Token:
+    user = authenticate_user(session, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.name}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
 
 @app.get("/users/", response_model=list[UserPublic])
 def read_users(
@@ -39,6 +62,7 @@ def read_user(
 
 @app.post("/users/", response_model=UserPublic)
 def create_user(session: SessionDep, user: UserCreate):
+    user.password = get_password_hash(user.password)
     db_user = User.model_validate(user)
     session.add(db_user)
     try:
@@ -71,3 +95,7 @@ def update_user(user_id: int, user: UserUpdate, session: SessionDep):
     session.commit()
     session.refresh(user_db)
     return user_db
+
+@app.get("/users/me/", response_model=UserPublic)
+async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
+    return current_user
