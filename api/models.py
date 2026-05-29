@@ -22,6 +22,7 @@ class UserUpdate(UserBase):
 
 class UserPublic(UserBase):
     created_at: datetime
+    id: int
 
 class Token(BaseModel):
     access_token: str
@@ -45,3 +46,4 @@ class ProjectCreate(ProjectBase):
 class ProjectPublic(ProjectBase):
     created_at: datetime
     owner_id: int
+    id: int
