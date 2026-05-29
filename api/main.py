@@ -7,6 +7,7 @@ from datetime import timedelta
 from dependencies import SessionDep, get_password_hash, create_access_token, authenticate_user
 from settings import ACCESS_TOKEN_EXPIRE_MINUTES
 from models import User, UserPublic, UserCreate, UserUpdate, Token
+from models import Project, ProjectPublic, ProjectCreate
 
 from dependencies import get_current_user
 
@@ -99,3 +100,50 @@ def update_user(user_id: int, user: UserUpdate, session: SessionDep):
 @app.get("/users/me/", response_model=UserPublic)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
+
+@app.get("/projects/", response_model=list[ProjectPublic])
+def read_projects(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+    owner_id: int | None = None,
+) -> list[Project]:
+    if owner_id:
+        statement = select(Project).where(Project.owner_id == owner_id).limit(limit)
+        project = session.exec(statement).all()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return project
+    projects = session.exec(select(Project).offset(offset).limit(limit)).all()
+    return projects
+
+@app.get("/projects/{project_id}", response_model=ProjectPublic)
+def read_project(
+    session: SessionDep,
+    project_id: int,
+) -> User:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+@app.post("/projects/", response_model=ProjectPublic)
+def create_project(session: SessionDep, project: ProjectCreate, user: Annotated[User, Depends(get_current_user)]):
+    db_project = Project.model_validate(project)
+    owner_id = user.id
+    db_project.owner_id = owner_id
+    session.add(db_project)
+    session.commit()
+    session.refresh(db_project)
+    return db_project
+
+@app.delete("/projects/{project_id}")
+def delete_project(session: SessionDep, project_id: int, user: Annotated[User, Depends(get_current_user)]):
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="User do not owns the project")
+    session.delete(project)
+    session.commit()
+    return {"ok": True}
