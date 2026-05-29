@@ -29,3 +29,19 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+
+class ProjectBase(SQLModel):
+    name: str
+
+class Project(ProjectBase, table=True):
+    __tablename__ = "projects"
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: int | None = Field(default=None, foreign_key="users.id")
+    created_at: datetime | None = Field(default=datetime.now(UTC))
+
+class ProjectCreate(ProjectBase):
+    pass
+
+class ProjectPublic(ProjectBase):
+    created_at: datetime
+    owner_id: int
