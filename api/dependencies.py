@@ -33,8 +33,15 @@ def get_user(session: SessionDep, username: str):
         return False
     return user
 
+def get_user_by_email(session: SessionDep, email: str):
+    statement = select(User).where(User.email == email)
+    user = session.exec(statement).first()
+    if not user:
+        return False
+    return user
+
 def authenticate_user(session: SessionDep, username: str, password: str):
-    user = get_user(session, username)
+    user = get_user_by_email(session, username)
     if not user:
         return False
     if not verify_password(password, user.password):
