@@ -77,7 +77,13 @@ def create_user(session: SessionDep, user: UserCreate):
     return db_user
 
 @app.delete("/users/{user_id}")
-def delete_user(user_id: int, session: SessionDep):
+def delete_user(
+    user_id: int,
+    session: SessionDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -85,16 +91,31 @@ def delete_user(user_id: int, session: SessionDep):
     session.commit()
     return {"ok": True}
 
-@app.patch("/users/{user_id}", response_model=UserPublic)
-def update_user(user_id: int, user: UserUpdate, session: SessionDep):
+@app.patch("/users/{user_id}", response_model=User)
+def update_user(
+    user_id: int,
+    user: UserUpdate,
+    session: SessionDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
     user_db = session.get(User, user_id)
     if not user_db:
         raise HTTPException(status_code=404, detail="User not found")
+    if user.password:
+        user.password = get_password_hash(user.password)
     user_data = user.model_dump(exclude_unset=True)
     user_db.sqlmodel_update(user_data)
     session.add(user_db)
-    session.commit()
-    session.refresh(user_db)
+    try:
+        session.commit()
+        session.refresh(user_db)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="A user with this email already exists",
+        )
     return user_db
 
 @app.get("/users/me/", response_model=UserPublic)
