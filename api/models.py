@@ -76,3 +76,25 @@ class TaskPublic(TaskBase):
     id: int
     project_id: int
     created_at: datetime
+
+class CommentBase(SQLModel):
+    content: str
+
+class Comment(CommentBase, table=True):
+    __tablename__ = "comments"
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id")
+    task_id: int = Field(foreign_key="tasks.id")
+    created_at: datetime | None = Field(default=datetime.now(UTC))
+
+class CommentCreate(CommentBase):
+    user_id: int
+    task_id: int
+
+class CommentUpdate(CommentBase):
+    content: str | None = None
+
+class CommentPublic(CommentBase):
+    id: int
+    user_id: int
+    task_id: int
