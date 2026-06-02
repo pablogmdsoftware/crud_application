@@ -47,3 +47,32 @@ class ProjectPublic(ProjectBase):
     created_at: datetime
     owner_id: int
     id: int
+
+class TaskBase(SQLModel):
+    title: str
+    description: str
+    assigned_to: int | None
+    status: str | None
+    due_date: datetime | None
+
+class Task(TaskBase, table=True):
+    __tablename__ = "tasks"
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="projects.id")
+    created_at: datetime | None = Field(default=datetime.now(UTC))
+
+class TaskCreate(TaskBase):
+    project_id: int
+    due_date: datetime | None = None
+
+class TaskUpdate(TaskBase):
+    title: str | None = None
+    description: str | None = None
+    assigned_to: int | None = None
+    status: str | None = None
+    due_date: datetime | None = None
+
+class TaskPublic(TaskBase):
+    id: int
+    project_id: int
+    created_at: datetime
