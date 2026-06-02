@@ -9,6 +9,7 @@ from settings import ACCESS_TOKEN_EXPIRE_MINUTES
 from models import User, UserPublic, UserCreate, UserUpdate, Token
 from models import Project, ProjectPublic, ProjectCreate
 from models import Task, TaskPublic, TaskCreate, TaskUpdate
+from models import Comment, CommentPublic, CommentCreate, CommentUpdate
 
 from dependencies import get_current_user
 
@@ -201,10 +202,7 @@ def create_task(session: SessionDep, task: TaskCreate):
 def delete_task(
     task_id: int,
     session: SessionDep,
-    # current_user: Annotated[User, Depends(get_current_user)],
 ) -> dict:
-    # if current_user.id != user_id:
-    #     raise HTTPException(status_code=403, detail="Forbidden")
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -217,10 +215,7 @@ def update_task(
     task_id: int,
     task: TaskUpdate,
     session: SessionDep,
-    # current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
-    # if current_user.id != user_id:
-    #     raise HTTPException(status_code=403, detail="Forbidden")
     task_db = session.get(Task, task_id)
     if not task_db:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -230,3 +225,59 @@ def update_task(
     session.commit()
     session.refresh(task_db)
     return task_db
+
+@app.get("/tasks/{task_id}/comments/", response_model=list[CommentPublic])
+def read_comments(
+    session: SessionDep,
+    task_id: int,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[Comment]:
+    comments = session.exec(select(Comment).where(Comment.task_id == task_id).offset(offset).limit(limit)).all()
+    return comments
+
+@app.get("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic)
+def read_comment(
+    session: SessionDep,
+    comment_id: int,
+) -> Comment:
+    comment = session.get(Comment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    return comment
+
+@app.post("/tasks/{task_id}/comments/", response_model=CommentPublic)
+def create_comment(session: SessionDep, comment: CommentCreate):
+    db_comment = Comment.model_validate(comment)
+    session.add(db_comment)
+    session.commit()
+    session.refresh(db_comment)
+    return db_comment
+
+@app.delete("/tasks/{task_id}/comments/{comment_id}")
+def delete_comment(
+    session: SessionDep,
+    comment_id: int,
+) -> dict:
+    comment = session.get(Comment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    session.delete(comment)
+    session.commit()
+    return {"ok": True}
+
+@app.patch("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic)
+def update_comment(
+    comment_id: int,
+    comment: CommentUpdate,
+    session: SessionDep,
+) -> Comment:
+    comment_db = session.get(Comment, comment_id)
+    if not comment_db:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    comment_data = comment.model_dump(exclude_unset=True)
+    comment_db.sqlmodel_update(comment_data)
+    session.add(comment_db)
+    session.commit()
+    session.refresh(comment_db)
+    return comment_db
