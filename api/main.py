@@ -144,7 +144,7 @@ def read_projects(
 def read_project(
     session: SessionDep,
     project_id: int,
-) -> User:
+) -> Project:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -215,7 +215,7 @@ def update_task(
     task_id: int,
     task: TaskUpdate,
     session: SessionDep,
-) -> User:
+) -> Task:
     task_db = session.get(Task, task_id)
     if not task_db:
         raise HTTPException(status_code=404, detail="Task not found")
