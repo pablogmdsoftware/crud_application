@@ -8,6 +8,7 @@ from dependencies import SessionDep, get_password_hash, create_access_token, aut
 from settings import ACCESS_TOKEN_EXPIRE_MINUTES
 from models import User, UserPublic, UserCreate, UserUpdate, Token
 from models import Project, ProjectPublic, ProjectCreate
+from models import Task, TaskPublic, TaskCreate, TaskUpdate
 
 from dependencies import get_current_user
 
@@ -168,3 +169,64 @@ def delete_project(session: SessionDep, project_id: int, user: Annotated[User, D
     session.delete(project)
     session.commit()
     return {"ok": True}
+
+@app.get("/tasks/", response_model=list[TaskPublic])
+def read_tasks(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[Task]:
+    tasks = session.exec(select(Task).offset(offset).limit(limit)).all()
+    return tasks
+
+@app.get("/tasks/{task_id}", response_model=TaskPublic)
+def read_task(
+    session: SessionDep,
+    task_id: int,
+) -> Task:
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+@app.post("/tasks/", response_model=TaskPublic)
+def create_task(session: SessionDep, task: TaskCreate):
+    db_task = Task.model_validate(task)
+    session.add(db_task)
+    session.commit()
+    session.refresh(db_task)
+    return db_task
+
+@app.delete("/tasks/{task_id}")
+def delete_task(
+    task_id: int,
+    session: SessionDep,
+    # current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    # if current_user.id != user_id:
+    #     raise HTTPException(status_code=403, detail="Forbidden")
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    session.delete(task)
+    session.commit()
+    return {"ok": True}
+
+@app.patch("/tasks/{task_id}", response_model=Task)
+def update_task(
+    task_id: int,
+    task: TaskUpdate,
+    session: SessionDep,
+    # current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    # if current_user.id != user_id:
+    #     raise HTTPException(status_code=403, detail="Forbidden")
+    task_db = session.get(Task, task_id)
+    if not task_db:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task_data = task.model_dump(exclude_unset=True)
+    task_db.sqlmodel_update(task_data)
+    session.add(task_db)
+    session.commit()
+    session.refresh(task_db)
+    return task_db
