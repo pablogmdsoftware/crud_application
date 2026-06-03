@@ -37,7 +37,7 @@ async def login_for_access_token(
     )
     return Token(access_token=access_token, token_type="bearer")
 
-@app.get("/users/", response_model=list[UserPublic])
+@app.get("/users/", response_model=list[UserPublic], tags=["users"])
 def read_users(
     session: SessionDep,
     offset: int = 0,
@@ -53,7 +53,7 @@ def read_users(
     users = session.exec(select(User).offset(offset).limit(limit)).all()
     return users
 
-@app.get("/users/{user_id}", response_model=UserPublic)
+@app.get("/users/{user_id}", response_model=UserPublic, tags=["users"])
 def read_user(
     session: SessionDep,
     user_id: int,
@@ -63,7 +63,7 @@ def read_user(
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@app.post("/users/", response_model=UserPublic)
+@app.post("/users/", response_model=UserPublic, tags=["users"])
 def create_user(session: SessionDep, user: UserCreate):
     user.password = get_password_hash(user.password)
     db_user = User.model_validate(user)
@@ -78,7 +78,7 @@ def create_user(session: SessionDep, user: UserCreate):
         )
     return db_user
 
-@app.delete("/users/{user_id}")
+@app.delete("/users/{user_id}", tags=["users"])
 def delete_user(
     user_id: int,
     session: SessionDep,
@@ -93,7 +93,7 @@ def delete_user(
     session.commit()
     return {"ok": True}
 
-@app.patch("/users/{user_id}", response_model=User)
+@app.patch("/users/{user_id}", response_model=User, tags=["users"])
 def update_user(
     user_id: int,
     user: UserUpdate,
@@ -120,11 +120,11 @@ def update_user(
         )
     return user_db
 
-@app.get("/users/me/", response_model=UserPublic)
+@app.get("/users/me/", response_model=UserPublic, tags=["users"])
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
 
-@app.get("/projects/", response_model=list[ProjectPublic])
+@app.get("/projects/", response_model=list[ProjectPublic], tags=["projects"])
 def read_projects(
     session: SessionDep,
     offset: int = 0,
@@ -140,7 +140,7 @@ def read_projects(
     projects = session.exec(select(Project).offset(offset).limit(limit)).all()
     return projects
 
-@app.get("/projects/{project_id}", response_model=ProjectPublic)
+@app.get("/projects/{project_id}", response_model=ProjectPublic, tags=["projects"])
 def read_project(
     session: SessionDep,
     project_id: int,
@@ -150,7 +150,7 @@ def read_project(
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
-@app.post("/projects/", response_model=ProjectPublic)
+@app.post("/projects/", response_model=ProjectPublic, tags=["projects"])
 def create_project(session: SessionDep, project: ProjectCreate, user: Annotated[User, Depends(get_current_user)]):
     db_project = Project.model_validate(project)
     owner_id = user.id
@@ -160,7 +160,7 @@ def create_project(session: SessionDep, project: ProjectCreate, user: Annotated[
     session.refresh(db_project)
     return db_project
 
-@app.delete("/projects/{project_id}")
+@app.delete("/projects/{project_id}", tags=["projects"])
 def delete_project(session: SessionDep, project_id: int, user: Annotated[User, Depends(get_current_user)]):
     project = session.get(Project, project_id)
     if not project:
@@ -171,7 +171,7 @@ def delete_project(session: SessionDep, project_id: int, user: Annotated[User, D
     session.commit()
     return {"ok": True}
 
-@app.get("/tasks/", response_model=list[TaskPublic])
+@app.get("/tasks/", response_model=list[TaskPublic], tags=["tasks"])
 def read_tasks(
     session: SessionDep,
     offset: int = 0,
@@ -180,7 +180,7 @@ def read_tasks(
     tasks = session.exec(select(Task).offset(offset).limit(limit)).all()
     return tasks
 
-@app.get("/tasks/{task_id}", response_model=TaskPublic)
+@app.get("/tasks/{task_id}", response_model=TaskPublic, tags=["tasks"])
 def read_task(
     session: SessionDep,
     task_id: int,
@@ -190,7 +190,7 @@ def read_task(
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
-@app.post("/tasks/", response_model=TaskPublic)
+@app.post("/tasks/", response_model=TaskPublic, tags=["tasks"])
 def create_task(session: SessionDep, task: TaskCreate):
     db_task = Task.model_validate(task)
     session.add(db_task)
@@ -198,7 +198,7 @@ def create_task(session: SessionDep, task: TaskCreate):
     session.refresh(db_task)
     return db_task
 
-@app.delete("/tasks/{task_id}")
+@app.delete("/tasks/{task_id}", tags=["tasks"])
 def delete_task(
     task_id: int,
     session: SessionDep,
@@ -210,7 +210,7 @@ def delete_task(
     session.commit()
     return {"ok": True}
 
-@app.patch("/tasks/{task_id}", response_model=Task)
+@app.patch("/tasks/{task_id}", response_model=Task, tags=["tasks"])
 def update_task(
     task_id: int,
     task: TaskUpdate,
@@ -226,7 +226,7 @@ def update_task(
     session.refresh(task_db)
     return task_db
 
-@app.get("/tasks/{task_id}/comments/", response_model=list[CommentPublic])
+@app.get("/tasks/{task_id}/comments/", response_model=list[CommentPublic], tags=["comments"])
 def read_comments(
     session: SessionDep,
     task_id: int,
@@ -236,7 +236,7 @@ def read_comments(
     comments = session.exec(select(Comment).where(Comment.task_id == task_id).offset(offset).limit(limit)).all()
     return comments
 
-@app.get("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic)
+@app.get("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic, tags=["comments"])
 def read_comment(
     session: SessionDep,
     comment_id: int,
@@ -246,7 +246,7 @@ def read_comment(
         raise HTTPException(status_code=404, detail="Comment not found")
     return comment
 
-@app.post("/tasks/{task_id}/comments/", response_model=CommentPublic)
+@app.post("/tasks/{task_id}/comments/", response_model=CommentPublic, tags=["comments"])
 def create_comment(session: SessionDep, comment: CommentCreate):
     db_comment = Comment.model_validate(comment)
     session.add(db_comment)
@@ -254,7 +254,7 @@ def create_comment(session: SessionDep, comment: CommentCreate):
     session.refresh(db_comment)
     return db_comment
 
-@app.delete("/tasks/{task_id}/comments/{comment_id}")
+@app.delete("/tasks/{task_id}/comments/{comment_id}", tags=["comments"])
 def delete_comment(
     session: SessionDep,
     comment_id: int,
@@ -266,7 +266,7 @@ def delete_comment(
     session.commit()
     return {"ok": True}
 
-@app.patch("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic)
+@app.patch("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic, tags=["comments"])
 def update_comment(
     comment_id: int,
     comment: CommentUpdate,
