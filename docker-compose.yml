@@ -17,6 +17,15 @@ services:
       - ./db/entrypoint.sh:/entrypoint.sh
       - db_data:/var/lib/postgresql/data
 
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: api
+    ports:
+      - "8000:8000"
+    depends_on: ["db"]
+
 secrets:
   db_user:
     file: ./.env/db_user.txt
