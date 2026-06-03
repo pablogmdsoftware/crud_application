@@ -14,7 +14,7 @@ services:
       - db_password
       - db_name
     volumes:
-      - ./.env/entrypoint.sh:/entrypoint.sh
+      - ./db/entrypoint.sh:/entrypoint.sh
       - db_data:/var/lib/postgresql/data
 
 secrets:
