@@ -29,6 +29,7 @@ services:
       - db_user
       - db_password
       - db_name
+      - secret_key
 
 secrets:
   db_user:
@@ -37,6 +38,8 @@ secrets:
     file: ./.env/db_password.txt
   db_name:
     file: ./.env/db_name.txt
+  secret_key:
+    file: ./.env/secret_key.txt
 
 volumes:
   db_data:

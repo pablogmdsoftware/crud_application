@@ -14,6 +14,6 @@ name = get_secret("db_name")
 
 engine = create_engine(f"postgresql://{user}:{password}@db:5432/{name}")
 
-SECRET_KEY = "df9564678fa80612898b78d7abd7f35477f93dbd23c39932f664285acb4a9834"
+SECRET_KEY = get_secret("secret_key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
