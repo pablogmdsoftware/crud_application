@@ -25,6 +25,10 @@ services:
     ports:
       - "8000:8000"
     depends_on: ["db"]
+    secrets:
+      - db_user
+      - db_password
+      - db_name
 
 secrets:
   db_user:
