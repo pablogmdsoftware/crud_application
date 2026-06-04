@@ -1,0 +1,45 @@
+services:
+  db:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: database
+    ports:
+      - "5433:5432"
+    # Run a script to export database credentials from secrets to environment variables before
+    # the db is created. This avoids errors when creating initial user and database.
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    secrets:
+      - db_user
+      - db_password
+      - db_name
+    volumes:
+      - ./db/entrypoint.sh:/entrypoint.sh
+      - db_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: api
+    ports:
+      - "8000:8000"
+    depends_on: ["db"]
+    secrets:
+      - db_user
+      - db_password
+      - db_name
+      - secret_key
+
+secrets:
+  db_user:
+    file: ./.env/db_user.txt
+  db_password:
+    file: ./.env/db_password.txt
+  db_name:
+    file: ./.env/db_name.txt
+  secret_key:
+    file: ./.env/secret_key.txt
+
+volumes:
+  db_data:

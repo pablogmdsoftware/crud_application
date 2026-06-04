@@ -1,0 +1,283 @@
+from fastapi import FastAPI, HTTPException, Depends, Query, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlmodel import select
+from sqlalchemy.exc import IntegrityError
+from typing import Annotated
+from datetime import timedelta
+from dependencies import SessionDep, get_password_hash, create_access_token, authenticate_user
+from settings import ACCESS_TOKEN_EXPIRE_MINUTES
+from models import User, UserPublic, UserCreate, UserUpdate, Token
+from models import Project, ProjectPublic, ProjectCreate
+from models import Task, TaskPublic, TaskCreate, TaskUpdate
+from models import Comment, CommentPublic, CommentCreate, CommentUpdate
+
+from dependencies import get_current_user
+
+app = FastAPI()
+
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
+@app.post("/token")
+async def login_for_access_token(
+    session: SessionDep,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> Token:
+    user = authenticate_user(session, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.name}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
+
+@app.get("/users/", response_model=list[UserPublic], tags=["users"])
+def read_users(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+    username: str | None = None,
+) -> list[User]:
+    if username:
+        statement = select(User).where(User.name == username).limit(limit)
+        user = session.exec(statement).all()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    users = session.exec(select(User).offset(offset).limit(limit)).all()
+    return users
+
+@app.get("/users/{user_id}", response_model=UserPublic, tags=["users"])
+def read_user(
+    session: SessionDep,
+    user_id: int,
+) -> User:
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.post("/users/", response_model=UserPublic, tags=["users"])
+def create_user(session: SessionDep, user: UserCreate):
+    user.password = get_password_hash(user.password)
+    db_user = User.model_validate(user)
+    session.add(db_user)
+    try:
+        session.commit()
+        session.refresh(db_user)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="A user with this email already exists",
+        )
+    return db_user
+
+@app.delete("/users/{user_id}", tags=["users"])
+def delete_user(
+    user_id: int,
+    session: SessionDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    session.delete(user)
+    session.commit()
+    return {"ok": True}
+
+@app.patch("/users/{user_id}", response_model=User, tags=["users"])
+def update_user(
+    user_id: int,
+    user: UserUpdate,
+    session: SessionDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user_db = session.get(User, user_id)
+    if not user_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.password:
+        user.password = get_password_hash(user.password)
+    user_data = user.model_dump(exclude_unset=True)
+    user_db.sqlmodel_update(user_data)
+    session.add(user_db)
+    try:
+        session.commit()
+        session.refresh(user_db)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="A user with this email already exists",
+        )
+    return user_db
+
+@app.get("/users/me/", response_model=UserPublic, tags=["users"])
+async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
+    return current_user
+
+@app.get("/projects/", response_model=list[ProjectPublic], tags=["projects"])
+def read_projects(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+    owner_id: int | None = None,
+) -> list[Project]:
+    if owner_id:
+        statement = select(Project).where(Project.owner_id == owner_id).limit(limit)
+        project = session.exec(statement).all()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return project
+    projects = session.exec(select(Project).offset(offset).limit(limit)).all()
+    return projects
+
+@app.get("/projects/{project_id}", response_model=ProjectPublic, tags=["projects"])
+def read_project(
+    session: SessionDep,
+    project_id: int,
+) -> Project:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+@app.post("/projects/", response_model=ProjectPublic, tags=["projects"])
+def create_project(session: SessionDep, project: ProjectCreate, user: Annotated[User, Depends(get_current_user)]):
+    db_project = Project.model_validate(project)
+    owner_id = user.id
+    db_project.owner_id = owner_id
+    session.add(db_project)
+    session.commit()
+    session.refresh(db_project)
+    return db_project
+
+@app.delete("/projects/{project_id}", tags=["projects"])
+def delete_project(session: SessionDep, project_id: int, user: Annotated[User, Depends(get_current_user)]):
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="User do not owns the project")
+    session.delete(project)
+    session.commit()
+    return {"ok": True}
+
+@app.get("/tasks/", response_model=list[TaskPublic], tags=["tasks"])
+def read_tasks(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[Task]:
+    tasks = session.exec(select(Task).offset(offset).limit(limit)).all()
+    return tasks
+
+@app.get("/tasks/{task_id}", response_model=TaskPublic, tags=["tasks"])
+def read_task(
+    session: SessionDep,
+    task_id: int,
+) -> Task:
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+@app.post("/tasks/", response_model=TaskPublic, tags=["tasks"])
+def create_task(session: SessionDep, task: TaskCreate):
+    db_task = Task.model_validate(task)
+    session.add(db_task)
+    session.commit()
+    session.refresh(db_task)
+    return db_task
+
+@app.delete("/tasks/{task_id}", tags=["tasks"])
+def delete_task(
+    task_id: int,
+    session: SessionDep,
+) -> dict:
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    session.delete(task)
+    session.commit()
+    return {"ok": True}
+
+@app.patch("/tasks/{task_id}", response_model=Task, tags=["tasks"])
+def update_task(
+    task_id: int,
+    task: TaskUpdate,
+    session: SessionDep,
+) -> Task:
+    task_db = session.get(Task, task_id)
+    if not task_db:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task_data = task.model_dump(exclude_unset=True)
+    task_db.sqlmodel_update(task_data)
+    session.add(task_db)
+    session.commit()
+    session.refresh(task_db)
+    return task_db
+
+@app.get("/tasks/{task_id}/comments/", response_model=list[CommentPublic], tags=["comments"])
+def read_comments(
+    session: SessionDep,
+    task_id: int,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[Comment]:
+    comments = session.exec(select(Comment).where(Comment.task_id == task_id).offset(offset).limit(limit)).all()
+    return comments
+
+@app.get("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic, tags=["comments"])
+def read_comment(
+    session: SessionDep,
+    comment_id: int,
+) -> Comment:
+    comment = session.get(Comment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    return comment
+
+@app.post("/tasks/{task_id}/comments/", response_model=CommentPublic, tags=["comments"])
+def create_comment(session: SessionDep, comment: CommentCreate):
+    db_comment = Comment.model_validate(comment)
+    session.add(db_comment)
+    session.commit()
+    session.refresh(db_comment)
+    return db_comment
+
+@app.delete("/tasks/{task_id}/comments/{comment_id}", tags=["comments"])
+def delete_comment(
+    session: SessionDep,
+    comment_id: int,
+) -> dict:
+    comment = session.get(Comment, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    session.delete(comment)
+    session.commit()
+    return {"ok": True}
+
+@app.patch("/tasks/{task_id}/comments/{comment_id}", response_model=CommentPublic, tags=["comments"])
+def update_comment(
+    comment_id: int,
+    comment: CommentUpdate,
+    session: SessionDep,
+) -> Comment:
+    comment_db = session.get(Comment, comment_id)
+    if not comment_db:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    comment_data = comment.model_dump(exclude_unset=True)
+    comment_db.sqlmodel_update(comment_data)
+    session.add(comment_db)
+    session.commit()
+    session.refresh(comment_db)
+    return comment_db
