@@ -53,6 +53,8 @@ Before running the project, make sure you have installed:
 
 ## Security Notice
 
+### Database Configuration
+
 ⚠️ **Important**
 
 Database credentials are currently stored in the `.env` file and are intended only for development purposes.
@@ -70,6 +72,25 @@ POSTGRES_DB=your_database
 Failure to change these values may expose your database to unauthorized access.
 
 ---
+
+### Secret Key Configuration
+
+⚠️ **Important**
+
+The application's authentication system relies on a secret key used to sign and validate security tokens. A default value is provided for development purposes only.
+
+Before running the application in any environment, update the secret key in the corresponding `.env` file with a strong, unique value. Using the default secret key may allow attackers to forge authentication tokens and compromise application security.
+
+Example:
+
+```env
+SECRET_KEY=your_random_and_secure_secret_key
+```
+
+A recommended approach is to generate a cryptographically secure random string of at least 32 characters and store it securely.
+
+As with the database credentials, the secret key should never be committed to version control or shared publicly. Rotating the secret key periodically is also considered a security best practice.
+
 
 ## Running the Project
 
